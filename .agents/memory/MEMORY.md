@@ -1,1 +1,1 @@
-- [Sahib design language](sahib-design-language.md) — SongForge's visual system: obsidian dark, orange=single CTA only / blue=everything secondary, Aref Ruqaa for song titles only, kept LTR, no glows.
+- [Grounded audio extraction pipeline](audio-extraction-pipeline.md) — managed proxy blocks whisper-1 (no native timestamps); ground via captions/json3 or ffmpeg-sliced gpt-4o-transcribe; yt-dlp at .pythonlibs/bin; host-allowlist URLs (SSRF).

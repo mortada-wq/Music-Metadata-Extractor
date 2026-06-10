@@ -3,6 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { db, songsTable, type Song as DbSong } from "@workspace/db";
 import { GenerateSongBody, GetSongParams, DeleteSongParams } from "@workspace/api-zod";
 import { classifyInput, generateSongMetadata } from "../lib/songMetadata";
+import { extractRealSongData, isAllowedYouTubeUrl } from "../lib/audioExtraction";
 
 const router: IRouter = Router();
 
@@ -67,9 +68,28 @@ router.post("/songs", async (req, res) => {
   }
   const inputType = classifyInput(input);
 
+  if (inputType === "youtube" && !isAllowedYouTubeUrl(input)) {
+    return res.status(400).json({
+      error: "That does not look like a valid YouTube link. Use a youtube.com or youtu.be URL.",
+    });
+  }
+
+  let realData;
+  try {
+    realData = await extractRealSongData(input, inputType);
+  } catch (err) {
+    req.log.error({ err }, "Real song data extraction failed");
+    return res.status(502).json({
+      error:
+        inputType === "youtube"
+          ? "Could not access this video. Check the YouTube link and try again."
+          : "Could not find a matching recording for that name. Try a YouTube link or a more specific name.",
+    });
+  }
+
   let metadata;
   try {
-    metadata = await generateSongMetadata(input, inputType);
+    metadata = await generateSongMetadata(input, inputType, realData);
   } catch (err) {
     req.log.error({ err }, "Song metadata generation failed");
     return res.status(502).json({ error: "Could not generate metadata for this song. Please try again." });
