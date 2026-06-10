@@ -422,7 +422,7 @@ components:
       properties:
         activeProvider:
           type: string
-          enum: [gemini, claude, deepseek, siliconflow]
+          enum: [gemini, claude, deepseek, siliconflow, flamingo]
         activeModel:
           type: string
       required:

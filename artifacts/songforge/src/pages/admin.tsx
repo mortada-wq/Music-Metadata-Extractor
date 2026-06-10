@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Save, Check, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 
-type Provider = "gemini" | "claude" | "deepseek" | "siliconflow";
+type Provider = "gemini" | "claude" | "deepseek" | "siliconflow" | "flamingo";
 
 const PROVIDERS: {
   id: Provider;
@@ -16,6 +16,8 @@ const PROVIDERS: {
   defaultModel: string;
   envVar?: string;
   supportsAudio: boolean;
+  audioOnly?: boolean;
+  note?: string;
 }[] = [
   {
     id: "gemini",
@@ -23,6 +25,16 @@ const PROVIDERS: {
     description: "Google Gemini via Replit proxy — no API key required.",
     defaultModel: "gemini-2.0-flash",
     supportsAudio: true,
+  },
+  {
+    id: "flamingo",
+    label: "Music Flamingo",
+    description: "NVIDIA Music Flamingo — music-specialized audio LLM via HuggingFace. Optional HF_TOKEN for higher rate limits.",
+    defaultModel: "nvidia/music-flamingo",
+    envVar: "HF_TOKEN",
+    supportsAudio: true,
+    audioOnly: true,
+    note: "Song-name queries fall back to Gemini (Flamingo needs audio). HF_TOKEN is optional but reduces rate limiting.",
   },
   {
     id: "claude",
@@ -154,12 +166,24 @@ export function Admin() {
           </div>
         )}
 
+        {current.audioOnly && (
+          <div className="flex gap-3 p-3 rounded-xl border border-sky-500/20 bg-sky-500/5">
+            <AlertCircle className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-sky-300 leading-relaxed">
+              <strong>{current.label}</strong> requires audio input (YouTube links or uploaded files).
+              Song-name queries will automatically fall back to Gemini for knowledge-only analysis.
+            </p>
+          </div>
+        )}
+
         {current.envVar && (
           <div className="flex gap-3 p-3 rounded-xl border border-border bg-card">
             <AlertCircle className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground leading-relaxed">
-              This provider requires the <code className="font-mono bg-secondary px-1 py-0.5 rounded text-foreground">{current.envVar}</code> environment
-              secret to be configured in the Replit Secrets panel before use.
+              {current.audioOnly
+                ? <>Optionally set <code className="font-mono bg-secondary px-1 py-0.5 rounded text-foreground">{current.envVar}</code> in the Replit Secrets panel to use your HuggingFace token and get higher rate limits. Works without it.</>
+                : <>This provider requires the <code className="font-mono bg-secondary px-1 py-0.5 rounded text-foreground">{current.envVar}</code> environment secret to be configured in the Replit Secrets panel before use.</>
+              }
             </p>
           </div>
         )}

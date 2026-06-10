@@ -127,6 +127,7 @@ export const AdminSettingsActiveProvider = {
   claude: 'claude',
   deepseek: 'deepseek',
   siliconflow: 'siliconflow',
+  flamingo: 'flamingo',
 } as const;
 
 export interface AdminSettings {

@@ -1,4 +1,5 @@
 import { readFile, rm } from "node:fs/promises";
+import path from "node:path";
 import { ai } from "@workspace/integrations-gemini-ai";
 import { isRateLimitError } from "@workspace/integrations-gemini-ai/batch";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
@@ -128,6 +129,134 @@ const JSON_FIELDS_SPEC = `Return ONLY a valid JSON object with exactly these fie
 }
 No markdown, no code fences, no explanation — only the raw JSON object.`;
 
+// ---------------------------------------------------------------------------
+// Music Flamingo (NVIDIA / HuggingFace Space)
+// ---------------------------------------------------------------------------
+
+const FLAMINGO_BASE = "https://nvidia-music-flamingo.hf.space";
+const FLAMINGO_TIMEOUT_MS = 6 * 60 * 1000; // 6 minutes
+
+const FLAMINGO_MUSICOLOGY_PROMPT = `You are an expert ethnomusicologist. Listen carefully to this audio and produce a complete musicological dossier. Return ONLY a raw JSON object — absolutely no markdown, no code fences, no commentary before or after. The JSON must have exactly these fields:
+
+{
+  "title": "song title",
+  "singer": "artist / performer name",
+  "composer": "composer name if known, else empty string",
+  "era": "decade or period (e.g. 1960s, Golden Age of Arabic music)",
+  "geography": "country or region of origin",
+  "history": "3-5 sentences of cultural and historical background",
+  "subject": "main theme or subject of the song",
+  "relatedSubjects": ["topic1", "topic2"],
+  "dialect": "language and dialect (e.g. Egyptian Arabic, Classical Arabic, Andalusian)",
+  "instruments": ["every instrument you actually hear in the audio"],
+  "voices": ["voice type descriptions, e.g. tenor, contralto, choir"],
+  "relatedWorks": ["related songs or artists"],
+  "transcription": "complete lyric transcription exactly as sung, in the original language and script",
+  "pronunciationNotes": "phonetic guidance for a non-native performer on tricky syllables or vowels",
+  "track": [
+    { "timestamp": "0:00", "label": "Intro", "instruments": ["oud"], "vocals": "none", "notes": "key, tempo, mood" }
+  ]
+}
+
+The track array must cover the full song with real timestamps from what you hear. Return the JSON object only.`;
+
+async function uploadAudioToFlamingo(
+  audioPath: string,
+  hfToken?: string,
+): Promise<{ path: string; orig_name: string; mime_type: string }> {
+  const fileBuffer = await readFile(audioPath);
+  const filename = path.basename(audioPath);
+  const mimeType = filename.endsWith(".mp3") ? "audio/mpeg" : "audio/wav";
+
+  const formData = new FormData();
+  const blob = new Blob([fileBuffer], { type: mimeType });
+  formData.append("files", blob, filename);
+
+  const uploadId = Math.random().toString(36).slice(2);
+  const headers: Record<string, string> = {};
+  if (hfToken) headers["Authorization"] = `Bearer ${hfToken}`;
+
+  const res = await fetch(`${FLAMINGO_BASE}/upload?upload_id=${uploadId}`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => res.statusText);
+    throw new Error(`Flamingo upload failed (${res.status}): ${txt}`);
+  }
+
+  const paths = (await res.json()) as string[];
+  if (!paths?.[0]) throw new Error("Flamingo upload returned no file path");
+  return { path: paths[0], orig_name: filename, mime_type: mimeType };
+}
+
+async function callFlamingoInfer(
+  audioDatum: object | null,
+  youtubeUrl: string,
+  hfToken?: string,
+): Promise<string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (hfToken) headers["Authorization"] = `Bearer ${hfToken}`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FLAMINGO_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`${FLAMINGO_BASE}/run/infer`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        data: [audioDatum, youtubeUrl, FLAMINGO_MUSICOLOGY_PROMPT],
+      }),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => res.statusText);
+      throw new Error(`Flamingo inference failed (${res.status}): ${txt}`);
+    }
+
+    const json = (await res.json()) as { data?: [string]; error?: string };
+    if (json.error) throw new Error(`Flamingo error: ${json.error}`);
+    const text = json.data?.[0];
+    if (!text) throw new Error("Flamingo returned empty response");
+    return text;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function generateFromFlamingo(
+  input: string,
+  inputType: "youtube" | "name",
+  audioFilePath?: string,
+): Promise<SongMetadata> {
+  const hfToken = process.env.HF_TOKEN;
+
+  let rawText: string;
+
+  if (inputType === "youtube") {
+    logger.info({ url: input }, "Music Flamingo: calling with YouTube URL");
+    rawText = await callFlamingoInfer(null, input, hfToken);
+  } else if (audioFilePath) {
+    logger.info({ audioFilePath }, "Music Flamingo: uploading audio file");
+    const audioDatum = await uploadAudioToFlamingo(audioFilePath, hfToken);
+    rawText = await callFlamingoInfer(audioDatum, "", hfToken);
+  } else {
+    throw new Error(
+      "Music Flamingo requires audio (YouTube URL or uploaded file). For song-name queries, choose a different provider.",
+    );
+  }
+
+  logger.info({ inputType }, "Music Flamingo: inference complete, parsing response");
+  return parseJsonResponse(rawText);
+}
+
+// ---------------------------------------------------------------------------
+// Shared user prompt for YouTube/name metadata display
+// ---------------------------------------------------------------------------
 function buildUserPrompt(
   input: string,
   inputType: "youtube" | "name",
@@ -256,15 +385,19 @@ async function callOpenAICompatible(
 }
 
 function parseJsonResponse(raw: string): SongMetadata {
+  // Strip markdown fences if present
   const stripped = raw
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```\s*$/, "")
+    .replace(/^```(?:json)?\s*/im, "")
+    .replace(/\s*```\s*$/m, "")
     .trim();
-  return SongMetadataSchema.parse(JSON.parse(stripped)) as SongMetadata;
+  // Extract first {...} block in case the model prefixed/suffixed text
+  const match = stripped.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("No JSON object found in model response");
+  return SongMetadataSchema.parse(JSON.parse(match[0])) as SongMetadata;
 }
 
 // ---------------------------------------------------------------------------
-// Knowledge-only generation (text models: all providers)
+// Knowledge-only generation (text models: all providers except flamingo)
 // ---------------------------------------------------------------------------
 
 export async function generateFromKnowledgeOnly(
@@ -272,6 +405,12 @@ export async function generateFromKnowledgeOnly(
   provider = "gemini",
   model = "gemini-2.0-flash",
 ): Promise<SongMetadata> {
+  if (provider === "flamingo") {
+    throw new Error(
+      "Music Flamingo requires audio input. For song-name queries, please use Gemini, Claude, DeepSeek, or Silicon Flow.",
+    );
+  }
+
   const userPrompt = `Produce the full musicological dossier for the song: "${songTitle}".
 
 No audio file is provided. Use your training knowledge to supply accurate lyrics (in the original language), plausible timestamps based on the song's known duration and structure, instrumentation, cultural history, dialect, pronunciation notes, and related works.`;
@@ -298,7 +437,7 @@ No audio file is provided. Use your training knowledge to supply accurate lyrics
     raw = await callClaude(model, KNOWLEDGE_SYSTEM_PROMPT, userPrompt);
   } else if (provider === "deepseek") {
     const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) throw new Error("DEEPSEEK_API_KEY is not set — configure it in the environment secrets.");
+    if (!apiKey) throw new Error("DEEPSEEK_API_KEY is not set.");
     raw = await callOpenAICompatible(
       "https://api.deepseek.com/v1",
       apiKey,
@@ -308,7 +447,7 @@ No audio file is provided. Use your training knowledge to supply accurate lyrics
     );
   } else if (provider === "siliconflow") {
     const apiKey = process.env.SILICON_FLOW_API_KEY;
-    if (!apiKey) throw new Error("SILICON_FLOW_API_KEY is not set — configure it in the environment secrets.");
+    if (!apiKey) throw new Error("SILICON_FLOW_API_KEY is not set.");
     raw = await callOpenAICompatible(
       "https://api.siliconflow.cn/v1",
       apiKey,
@@ -325,18 +464,32 @@ No audio file is provided. Use your training knowledge to supply accurate lyrics
 }
 
 // ---------------------------------------------------------------------------
-// Audio-based generation (Gemini only — requires multimodal support)
+// Audio-based generation from uploaded file
 // ---------------------------------------------------------------------------
 
 /**
- * Generate a full musicological dossier from an uploaded audio/video file.
- * Converts the file to mp3 via ffmpeg, then sends it inline to Gemini.
- * Note: audio analysis requires Gemini regardless of the active provider setting.
+ * Generate from an uploaded audio/video file.
+ * - If provider is "flamingo": upload to the HuggingFace Space and call Music Flamingo.
+ * - Otherwise: convert to mp3, send inline to Gemini (only Gemini supports inline audio).
  */
 export async function generateFromUploadedAudio(
   filePath: string,
   originalFilename: string,
+  provider = "gemini",
 ): Promise<SongMetadata> {
+  if (provider === "flamingo") {
+    const converted = await convertToMp3ForGemini(filePath);
+    try {
+      const metadata = await generateFromFlamingo("uploaded-file", "name", converted.mp3Path);
+      logger.info({ originalFilename }, "Music Flamingo upload dossier generated");
+      return metadata;
+    } finally {
+      await rm(converted.tempDir, { recursive: true, force: true }).catch(() => {});
+    }
+  }
+
+  // All non-Flamingo providers: convert to mp3 and send to Gemini inline
+  // (only Gemini supports inline audio; other text models fall back to knowledge prompt)
   const converted = await convertToMp3ForGemini(filePath);
   try {
     const audioBytes = await readFile(converted.mp3Path);
@@ -378,11 +531,16 @@ Listen to the audio and provide: exact lyrics transcription in the original lang
   }
 }
 
+// ---------------------------------------------------------------------------
+// Main entry point: YouTube or song-name generation
+// ---------------------------------------------------------------------------
+
 /**
  * Generate a full musicological dossier for a YouTube link or song name.
- * Downloads audio via yt-dlp; passes to Gemini for audio analysis.
- * If a non-Gemini provider is active and the input is a song name, routes
- * to knowledge-only generation with that provider.
+ * - flamingo provider: pass YouTube URL directly to Music Flamingo (audio-native).
+ *   Song-name inputs fall back to knowledge-only with Gemini.
+ * - gemini: download audio via yt-dlp and send inline.
+ * - Other providers: text/knowledge-only (no audio).
  */
 export async function generateSongMetadata(
   input: string,
@@ -390,11 +548,25 @@ export async function generateSongMetadata(
   provider = "gemini",
   model = "gemini-2.0-flash",
 ): Promise<SongMetadata> {
-  // Non-Gemini providers cannot process audio — use knowledge-only path
+  // Music Flamingo path
+  if (provider === "flamingo") {
+    if (inputType === "youtube") {
+      return generateFromFlamingo(input, "youtube");
+    }
+    // Name input: Flamingo needs audio — fall back to Gemini knowledge-only
+    logger.info(
+      { input },
+      "Music Flamingo: no audio for name input — falling back to Gemini knowledge-only",
+    );
+    return generateFromKnowledgeOnly(input, "gemini", "gemini-2.0-flash");
+  }
+
+  // Non-Gemini text providers: skip audio download, go straight to knowledge-only
   if (provider !== "gemini" && inputType === "name") {
     return generateFromKnowledgeOnly(input, provider, model);
   }
 
+  // Gemini (or non-Gemini with YouTube — download audio then use Gemini inline)
   const downloaded = await fetchAndDownloadAudio(input, inputType);
 
   try {

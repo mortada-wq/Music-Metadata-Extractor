@@ -1,0 +1,170 @@
+Music Flamingo logo
+Music Flamingo: Scaling Music Understanding in Audio Language Models
+Upload a song and ask anything — including captions, lyrics, genre, key, chords, or complex questions. Music Flamingo gives detailed answers.
+
+Authors: Sreyan Ghosh1,2*, Arushi Goel1*, Lasha Koroshinadze2**, Sang-gil Lee1, Zhifeng Kong1, Joao Felipe Santos1,
+Ramani Duraiswami2, Dinesh Manocha2, Wei Ping1, Mohammad Shoeybi1, Bryan Catanzaro1
+
+1NVIDIA, CA, USA | 2University of Maryland, College Park, USA
+
+*Equally contributed and led the project. Names randomly ordered. **Significant technical contribution.
+
+Correspondence: sreyang@umd.edu, arushig@nvidia.com
+
+arXiv
+Demo page
+Github
+Stars
+Checkpoints
+Dataset
+🎵 Audio Input
+Upload Audio File
+
+Drop Audio Here
+- or -
+Click to Upload
+
+
+OR
+
+YouTube URL
+Paste any YouTube URL - we'll extract high-quality audio automatically
+
+https://www.youtube.com/watch?v=...
+🔄 Load Audio
+Prompt
+Describe this track in full detail - tell me the genre, tempo, and key, then dive into the instruments, production style, and overall mood it creates.
+🎵 Example Prompts
+YouTube URL	Prompt
+https://youtu.be/ko70cExuzZM
+Describe this track in full detail - tell me the genre, temp...
+https://youtu.be/iywaBOMvYLI
+Generate a structured lyric sheet from the input music.
+https://youtu.be/_mTRvJ9fugM
+Which line directly precedes the chorus?
+Generate Answer
+Model Response
+Model answers will appear here with audio-informed insights…
+© 2025 NVIDIA | Powered by 🤗 Transformers + Gradio
+Use via APIlogo
+·
+Built with Gradiologo
+·
+SettingsSettings
+
+
+API documentation
+nvidia/music-flamingo
+
+API Recorder
+
+4 API endpoints
+
+
+Choose one of the following ways to interact with the API.
+
+1. Install the python client (docs) if you don't already have it installed.
+
+copy
+$ pip install gradio_client
+2. Find the API endpoint below corresponding to your desired function in the app. Copy the code snippet, replacing the placeholder values with your own input data. If this is a private Space, you may need to pass your Hugging Face token as well (read more). Or use the 
+API Recorder
+
+ to automatically generate your API requests.
+
+API name: /lambda Total requests: 578 (100% successful)  |  p50/p90/p99: 2 ms / 2 ms / 4 ms
+copy
+from gradio_client import Client
+
+client = Client("nvidia/music-flamingo")
+result = client.predict(
+	api_name="/lambda"
+)
+print(result)
+Accepts 0 parameters:
+Returns tuple of 3 elements
+[0] filepath
+
+The output value that appears in the "Upload Audio File" Audio component.
+
+[1] str
+
+The output value that appears in the "Status" Textbox component.
+
+[2] str
+
+The output value that appears in the "Status" Textbox component.
+
+API name: /load_youtube_audio Load YouTube audio into the Audio component and generate video embed. Total requests: 580 (100% successful)  |  p50/p90/p99: 73 ms / 6.54 s / 60.11 s
+copy
+from gradio_client import Client
+
+client = Client("nvidia/music-flamingo")
+result = client.predict(
+	youtube_url="Hello!!",
+	api_name="/load_youtube_audio"
+)
+print(result)
+Accepts 1 parameter:
+youtube_url str Required
+
+The input value that is provided in the "YouTube URL" Textbox component.
+
+Returns tuple of 3 elements
+[0] filepath
+
+The output value that appears in the "Upload Audio File" Audio component.
+
+[1] str
+
+The output value that appears in the "Status" Textbox component.
+
+[2] str
+
+The output value that appears in the "Video Preview" Html component.
+
+API name: /lambda_1 Total requests: 571 (100% successful)  |  p50/p90/p99: 2 ms / 2 ms / 3 ms
+copy
+from gradio_client import Client
+
+client = Client("nvidia/music-flamingo")
+result = client.predict(
+	api_name="/lambda_1"
+)
+print(result)
+Accepts 0 parameters:
+Returns 1 element
+str
+
+The output value that appears in the "Video Preview" Html component.
+
+API name: /infer Total requests: 2808 (73% successful)  |  p50/p90/p99: 0 ms / 0 ms / 0 ms
+copy
+from gradio_client import Client, handle_file
+
+client = Client("nvidia/music-flamingo")
+result = client.predict(
+	audio_path=handle_file('https://github.com/gradio-app/gradio/raw/main/test/test_files/audio_sample.wav'),
+	youtube_url="Hello!!",
+	prompt_text="Describe this track in full detail - tell me the genre, tempo, and key, then dive into the instruments, production style, and overall mood it creates.",
+	api_name="/infer"
+)
+print(result)
+Accepts 3 parameters:
+audio_path filepath Required
+
+The input value that is provided in the "Upload Audio File" Audio component. The FileData class is a subclass of the GradioModel class that represents a file object within a Gradio interface. It is used to store file data and metadata when a file is uploaded. Attributes: path: The server file path where the file is stored. url: The normalized server URL pointing to the file. size: The size of the file in bytes. orig_name: The original filename before upload. mime_type: The MIME type of the file. is_stream: Indicates whether the file is a stream. meta: Additional metadata used internally (should not be changed).
+
+youtube_url str Required
+
+The input value that is provided in the "YouTube URL" Textbox component.
+
+prompt_text str Default: "Describe this track in full detail - tell me the genre, tempo, and key, then dive into the instruments, production style, and overall mood it creates."
+
+The input value that is provided in the "Prompt" Textbox component.
+
+Returns 1 element
+str
+
+The output value that appears in the "Model Response" Textbox component.
+
