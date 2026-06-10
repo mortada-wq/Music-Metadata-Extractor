@@ -35,13 +35,13 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="min-h-[100dvh] flex flex-col relative">
       <div className="noise-overlay" />
       <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-4 h-24 flex items-center justify-between">
           <Link href="/" aria-label="مضمام صاحب" className="flex flex-col items-center gap-0.5 transition-opacity hover:opacity-80">
             <svg
               aria-hidden="true"
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 68 69"
-              className="h-8 w-auto"
+              className="h-16 w-auto"
               fill="none"
             >
               <defs>
@@ -54,7 +54,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </svg>
             <span
               style={{ fontFamily: "'Muna', 'IBM Plex Sans Arabic', 'Tajawal', sans-serif" }}
-              className="text-[10px] font-medium tracking-wide text-muted-foreground leading-none"
+              className="text-[20px] font-medium tracking-wide text-muted-foreground leading-none"
               dir="rtl"
             >
               مضمام صاحب
