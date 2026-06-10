@@ -211,7 +211,7 @@ Listen to the audio and provide: exact lyrics transcription in the original lang
 
     const content = await callGeminiWithRetry(async () => {
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-1.5-pro",
         contents: [
           {
             role: "user",
@@ -254,7 +254,7 @@ No audio file is provided. Use your training knowledge to supply accurate lyrics
 
   const content = await callGeminiWithRetry(async () => {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-pro",
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
       config: {
         systemInstruction: KNOWLEDGE_SYSTEM_PROMPT,
@@ -274,7 +274,7 @@ No audio file is provided. Use your training knowledge to supply accurate lyrics
 
 /**
  * Generate a full musicological dossier for a song.
- * Downloads the audio via yt-dlp, passes it inline to Gemini gemini-2.5-flash,
+ * Downloads the audio via yt-dlp, passes it inline to Gemini gemini-1.5-pro,
  * and validates the structured response against the SongMetadata Zod schema.
  */
 export async function generateSongMetadata(
@@ -296,7 +296,7 @@ export async function generateSongMetadata(
 
     const content = await callGeminiWithRetry(async () => {
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-1.5-pro",
         contents: [
           {
             role: "user",
