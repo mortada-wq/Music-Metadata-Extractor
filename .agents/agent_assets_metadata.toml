@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "m2bLu9YSoT3gbJGZvZ75c"
+uri = "file://reports/songforge-report.md"
+type = "text"
+title = "SongForge — Application Report"
