@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useListSongs, useUpdateSong, getListSongsQueryKey } from "@workspace/api-client-react";
+import { useListSongs, useUpdateSong, useDeleteSong, getListSongsQueryKey, getGetSongStatsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Save, X } from "lucide-react";
+import { ArrowLeft, Save, X, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import type { Song } from "@workspace/api-client-react";
 
@@ -99,6 +99,25 @@ export function RagGrid() {
   const [isSaving, setIsSaving] = useState(false);
 
   const updateSong = useUpdateSong();
+  const deleteSong = useDeleteSong();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+
+  const handleDelete = async (songId: number) => {
+    if (confirmDeleteId !== songId) {
+      setConfirmDeleteId(songId);
+      return;
+    }
+    try {
+      await deleteSong.mutateAsync({ id: songId });
+      queryClient.invalidateQueries({ queryKey: getListSongsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetSongStatsQueryKey() });
+      toast({ title: "Deleted", description: "Song removed from the archive." });
+    } catch {
+      toast({ title: "Delete failed", description: "Could not delete this song.", variant: "destructive" });
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  };
 
   const openCell = useCallback((song: Song, field: FieldDef) => {
     const value = getFieldValue(song, field.key);
@@ -207,13 +226,31 @@ export function RagGrid() {
                     className={`border-b border-border/40 hover:bg-secondary/30 transition-colors ${rowIdx % 2 === 0 ? "" : "bg-card/40"}`}
                   >
                     <td
-                      className="sticky left-0 z-10 bg-inherit px-4 py-2.5 border-r border-border"
+                      className="sticky left-0 z-10 bg-inherit px-4 py-2.5 border-r border-border group"
                       style={{ minWidth: 200 }}
                     >
-                      <div className="font-medium text-foreground truncate max-w-[180px]" title={song.title}>
-                        {song.title}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-medium text-foreground truncate max-w-[150px]" title={song.title}>
+                            {song.title}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate max-w-[150px]">{song.singer}</div>
+                        </div>
+                        <button
+                          onClick={() => handleDelete(song.id)}
+                          disabled={deleteSong.isPending}
+                          title={confirmDeleteId === song.id ? "Click again to confirm delete" : "Delete this song"}
+                          className={`shrink-0 opacity-0 group-hover:opacity-100 transition-all rounded p-1 ${
+                            confirmDeleteId === song.id
+                              ? "opacity-100 text-destructive bg-destructive/10 hover:bg-destructive/20"
+                              : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          }`}
+                        >
+                          {confirmDeleteId === song.id
+                            ? <X className="w-3.5 h-3.5" />
+                            : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
                       </div>
-                      <div className="text-xs text-muted-foreground truncate max-w-[180px]">{song.singer}</div>
                     </td>
                     {FIELDS.map((f) => {
                       const value = getFieldValue(song, f.key);
