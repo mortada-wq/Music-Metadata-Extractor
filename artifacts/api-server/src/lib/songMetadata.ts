@@ -211,7 +211,7 @@ Listen to the audio and provide: exact lyrics transcription in the original lang
 
     const content = await callGeminiWithRetry(async () => {
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-pro",
+        model: "gemini-2.0-flash",
         contents: [
           {
             role: "user",
@@ -296,7 +296,7 @@ export async function generateSongMetadata(
 
     const content = await callGeminiWithRetry(async () => {
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-pro",
+        model: "gemini-2.0-flash",
         contents: [
           {
             role: "user",
