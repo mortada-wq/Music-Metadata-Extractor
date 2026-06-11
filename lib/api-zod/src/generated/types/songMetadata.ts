@@ -37,4 +37,13 @@ export interface SongMetadata {
   pronunciationNotes: string;
   /** Interval-by-interval breakdown of the music */
   track: TrackSegment[];
+  /** Melodic modes (Maqamat) present in the recording. Each entry names the maqam and its tonic, e.g. "Bayat — tonic: D, lowered 2nd & 6th" or "Sikah — tonic: E half-flat, characteristic neutral 3rd".
+   */
+  maqamat?: string[];
+  /** Rhythmic cycles (Iqa'at) used. Each entry includes the name and time signature, e.g. "Maqsum 4/4", "Chobi 6/8", "Sama'i Thaqil 10/8".
+   */
+  iqaat?: string[];
+  /** Description of specific vocal and instrumental ornamentation techniques heard: melisma (tahrir), glottal ornaments, messa di voce, portamento, mordent, trill, vibrato, layali/mawwal phrases, etc.
+   */
+  ornamentation?: string | null;
 }

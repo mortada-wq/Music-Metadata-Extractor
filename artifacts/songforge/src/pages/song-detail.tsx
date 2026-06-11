@@ -14,7 +14,7 @@ import { downloadJson } from "@/lib/export";
 import { useToast } from "@/hooks/use-toast";
 import { 
   ArrowLeft, Download, Trash2, User, Globe, Clock, BookOpen, 
-  Mic2, Music2, Languages, ListMusic, FileText 
+  Mic2, Music2, Languages, ListMusic, FileText, Dna
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -191,6 +191,50 @@ export function SongDetail() {
               </div>
             </div>
           </section>
+
+          {(!!m.maqamat?.length || !!m.iqaat?.length || !!m.ornamentation) && (
+            <section className="space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2 flex items-center gap-2">
+                <Dna className="w-4 h-4" /> Musical DNA
+              </h3>
+              {m.maqamat && m.maqamat.length > 0 && (
+                <div>
+                  <span className="block text-xs font-semibold text-muted-foreground mb-1.5">Maqamat</span>
+                  <div className="flex flex-col gap-1">
+                    {m.maqamat.map((maq) => (
+                      <span
+                        key={maq}
+                        className="text-xs px-2.5 py-1.5 bg-brand-blue/10 text-brand-blue rounded-md font-medium leading-snug"
+                      >
+                        {maq}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {m.iqaat && m.iqaat.length > 0 && (
+                <div>
+                  <span className="block text-xs font-semibold text-muted-foreground mb-1.5">Iqa'at</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {m.iqaat.map((iqa) => (
+                      <span
+                        key={iqa}
+                        className="text-xs px-2.5 py-1 bg-secondary/70 text-secondary-foreground rounded-full font-medium border border-border/40"
+                      >
+                        {iqa}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {m.ornamentation && (
+                <div>
+                  <span className="block text-xs font-semibold text-muted-foreground mb-1">Ornamentation</span>
+                  <p className="text-xs text-foreground/80 leading-relaxed">{m.ornamentation}</p>
+                </div>
+              )}
+            </section>
+          )}
 
           {(m.relatedSubjects?.length > 0 || m.relatedWorks?.length > 0) && (
             <section className="space-y-4">

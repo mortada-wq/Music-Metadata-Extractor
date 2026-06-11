@@ -26,6 +26,12 @@ export type SongMetadata = {
   transcription: string;
   pronunciationNotes: string;
   track: TrackSegment[];
+  /** Melodic modes present (e.g. ["Bayat — tonic: D", "Sikah — tonic: E half-flat"]) */
+  maqamat?: string[];
+  /** Rhythmic cycles present (e.g. ["Maqsum 4/4", "Chobi 6/8"]) */
+  iqaat?: string[];
+  /** Vocal and instrumental ornamentation techniques heard */
+  ornamentation?: string | null;
 };
 
 export const songsTable = pgTable("songs", {

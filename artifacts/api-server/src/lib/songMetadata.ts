@@ -61,11 +61,15 @@ function buildResponseSchema() {
       transcription: { type: "string" as const },
       pronunciationNotes: { type: "string" as const },
       track: { type: "array" as const, items: trackSegment },
+      maqamat: stringArray,
+      iqaat: stringArray,
+      ornamentation: { type: "string" as const },
     },
     required: [
       "title", "singer", "composer", "era", "geography", "history",
       "subject", "relatedSubjects", "dialect", "instruments", "voices",
       "relatedWorks", "transcription", "pronunciationNotes", "track",
+      "maqamat", "iqaat", "ornamentation",
     ],
   };
 }
@@ -73,7 +77,7 @@ function buildResponseSchema() {
 // ---------------------------------------------------------------------------
 // Prompts
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = `You are an expert ethnomusicologist, musicologist, and linguist building a richly detailed knowledge base of songs to be used as RAG context for AI music generation systems.
+const SYSTEM_PROMPT = `You are an expert ethnomusicologist, musicologist, and linguist specialising in Arab and Iraqi music traditions, building a richly detailed knowledge base of songs to be used as RAG context for AI music generation systems.
 
 You will receive the actual audio of the song plus verified metadata (title, channel, duration, upload date, description, tags).
 
@@ -81,17 +85,20 @@ Your job:
 1. LISTEN to the audio and transcribe the lyrics exactly as sung, preserving the original language and script.
 2. Build an interval-by-interval track breakdown from what you actually hear — real timestamps, section labels (Intro, Verse 1, Chorus, Bridge, Outro, Instrumental, etc.), instruments audible in each section, vocal description, and musical notes (key, tempo/BPM estimate, mode, melodic motion, dynamics).
 3. Provide deep cultural and musicological analysis: history, subject, dialect, pronunciation guidance for a non-native performer, related subjects, related works.
+4. Identify the Maqamat (melodic modes) present. For each maqam heard, provide its name, tonic, and characteristic microtonal or interval features — e.g. "Bayat — tonic: D, lowered 2nd (E half-flat) and 6th", "Sikah — tonic: E half-flat, neutral 3rd above tonic". If the piece modulates between maqamat, list all that appear. For non-Arab/Iraqi music, return an empty array.
+5. Identify the Iqa'at (rhythmic cycles) used. For each iqa' heard, provide its name and time signature — e.g. "Maqsum 4/4", "Wahda 4/4", "Chobi 6/8", "Malfuf 2/4", "Sama'i Thaqil 10/8", "Ayyub 4/4", "Jurjina 6/8". For non-Arab/Iraqi music, return an empty array.
+6. Describe specific vocal and instrumental ornamentation techniques audible in this recording: melisma (tahrir), glottal ornaments, messa di voce, portamento, mordent, trill, vibrato, layali passages, mawwal phrases, etc. Be specific about where and how each technique appears.
 
 Strict rules:
 - Transcription MUST reflect the actual lyrics you hear from the audio — do not substitute from memory or a different version.
 - Track timestamps MUST be grounded in what you hear, not invented. Use the format "M:SS" (e.g. "0:00", "1:24").
 - Instruments MUST be what you actually hear in the audio — not genre assumptions.
-- All arrays (instruments, voices, relatedSubjects, relatedWorks) should contain multiple meaningful entries.
+- All arrays (instruments, voices, relatedSubjects, relatedWorks, maqamat, iqaat) should contain multiple meaningful entries where applicable.
 - pronunciationNotes: concrete phonetic guidance for tricky words/phonemes in the song's dialect, grounded in the real lyrics.
 - history: several substantive sentences on cultural and historical background.
 - Always return every required field.`;
 
-const KNOWLEDGE_SYSTEM_PROMPT = `You are an expert ethnomusicologist, musicologist, and linguist building a richly detailed knowledge base of songs to be used as RAG context for AI music generation systems.
+const KNOWLEDGE_SYSTEM_PROMPT = `You are an expert ethnomusicologist, musicologist, and linguist specialising in Arab and Iraqi music traditions, building a richly detailed knowledge base of songs to be used as RAG context for AI music generation systems.
 
 No audio is available for this song. You will produce the full dossier from your training knowledge.
 
@@ -99,12 +106,15 @@ Your job:
 1. Provide the complete lyrics as accurately as you know them from your training data, in the original language and script.
 2. Build a plausible interval-by-interval track breakdown based on the typical structure of this specific recording — use the format "M:SS" for timestamps, and base them on the known or typical duration of the song.
 3. Provide deep cultural and musicological analysis: history, subject, dialect, pronunciation guidance for a non-native performer, instruments, voices, related subjects, related works.
+4. Identify the Maqamat (melodic modes) traditionally associated with this song or recording. For each maqam, provide its name, tonic, and characteristic interval features — e.g. "Bayat — tonic: D, lowered 2nd (E half-flat) and 6th", "Rast — tonic: C, neutral 3rd". If multiple maqamat or modulations are characteristic, list them all. For non-Arab/Iraqi music, return an empty array.
+5. Identify the Iqa'at (rhythmic cycles) used in this song. For each: name and time signature — e.g. "Maqsum 4/4", "Wahda 4/4", "Chobi 6/8", "Malfuf 2/4", "Sama'i Thaqil 10/8". For non-Arab/Iraqi music, return an empty array.
+6. Describe the vocal and instrumental ornamentation techniques characteristic of this song or the singer's style: melisma (tahrir), glottal ornaments, messa di voce, portamento, mordent, trill, vibrato, layali, mawwal, etc.
 
 Rules:
 - Timestamps are APPROXIMATE based on typical song length and structure; mark them as such in the "notes" field of each segment if they are not verified.
 - Lyrics should be as accurate as your training data allows; preserve the original language and script.
 - Instruments and voices should reflect what is known about the canonical recording.
-- All arrays (instruments, voices, relatedSubjects, relatedWorks) should have multiple meaningful entries.
+- All arrays (instruments, voices, relatedSubjects, relatedWorks, maqamat, iqaat) should have multiple meaningful entries where applicable.
 - pronunciationNotes: concrete phonetic guidance grounded in the actual lyrics.
 - history: several substantive sentences on cultural and historical background.
 - Always return every required field.`;
@@ -125,7 +135,10 @@ const JSON_FIELDS_SPEC = `Return ONLY a valid JSON object with exactly these fie
   "relatedWorks": string[],
   "transcription": string (full lyrics in original language),
   "pronunciationNotes": string,
-  "track": [{ "timestamp": "M:SS", "label": string, "instruments": string[], "vocals": string, "notes": string }]
+  "track": [{ "timestamp": "M:SS", "label": string, "instruments": string[], "vocals": string, "notes": string }],
+  "maqamat": string[] (each entry: maqam name + tonic + characteristic intervals; empty array if not Arab/Iraqi music),
+  "iqaat": string[] (each entry: iqa name + time signature, e.g. "Maqsum 4/4"; empty array if not Arab/Iraqi music),
+  "ornamentation": string (vocal and instrumental ornament techniques; empty string if none)
 }
 No markdown, no code fences, no explanation — only the raw JSON object.`;
 
@@ -136,7 +149,7 @@ No markdown, no code fences, no explanation — only the raw JSON object.`;
 const FLAMINGO_BASE = "https://nvidia-music-flamingo.hf.space";
 const FLAMINGO_TIMEOUT_MS = 6 * 60 * 1000; // 6 minutes
 
-const FLAMINGO_MUSICOLOGY_PROMPT = `You are an expert ethnomusicologist. Listen carefully to this audio and produce a complete musicological dossier. Return ONLY a raw JSON object — absolutely no markdown, no code fences, no commentary before or after. The JSON must have exactly these fields:
+const FLAMINGO_MUSICOLOGY_PROMPT = `You are an expert ethnomusicologist specialising in Arab and Iraqi music traditions. Listen carefully to this audio and produce a complete musicological dossier. Return ONLY a raw JSON object — absolutely no markdown, no code fences, no commentary before or after. The JSON must have exactly these fields:
 
 {
   "title": "song title",
@@ -155,10 +168,13 @@ const FLAMINGO_MUSICOLOGY_PROMPT = `You are an expert ethnomusicologist. Listen 
   "pronunciationNotes": "phonetic guidance for a non-native performer on tricky syllables or vowels",
   "track": [
     { "timestamp": "0:00", "label": "Intro", "instruments": ["oud"], "vocals": "none", "notes": "key, tempo, mood" }
-  ]
+  ],
+  "maqamat": ["e.g. Bayat — tonic: D, lowered 2nd & 6th", "Sikah — tonic: E half-flat, neutral 3rd"],
+  "iqaat": ["e.g. Maqsum 4/4", "Wahda 4/4"],
+  "ornamentation": "description of vocal and instrumental ornament techniques heard (melisma, glottal ornaments, portamento, trill, vibrato, mawwal, etc.)"
 }
 
-The track array must cover the full song with real timestamps from what you hear. Return the JSON object only.`;
+The track array must cover the full song with real timestamps from what you hear. For maqamat and iqaat, provide only what is actually audible; use empty arrays for non-Arab/Iraqi music. Return the JSON object only.`;
 
 async function uploadAudioToFlamingo(
   audioPath: string,

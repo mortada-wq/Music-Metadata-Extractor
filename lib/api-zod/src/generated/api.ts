@@ -50,7 +50,10 @@ export const ListSongsResponseItem = zod.object({
   "instruments": zod.array(zod.string()).describe('Instruments active during this interval'),
   "vocals": zod.string().describe('Vocal description for this interval (which voices, harmony, solo, etc.)'),
   "notes": zod.string().describe('Musical notes — key, tempo, mode, melodic motion, dynamics')
-}).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music')
+}).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music'),
+  "maqamat": zod.array(zod.string()).optional().describe('Melodic modes (Maqamat) present in the recording. Each entry names the maqam and its tonic, e.g. \"Bayat — tonic: D, lowered 2nd & 6th\" or \"Sikah — tonic: E half-flat, characteristic neutral 3rd\".\n'),
+  "iqaat": zod.array(zod.string()).optional().describe('Rhythmic cycles (Iqa\'at) used. Each entry includes the name and time signature, e.g. \"Maqsum 4\/4\", \"Chobi 6\/8\", \"Sama\'i Thaqil 10\/8\".\n'),
+  "ornamentation": zod.string().nullish().describe('Description of specific vocal and instrumental ornamentation techniques heard: melisma (tahrir), glottal ornaments, messa di voce, portamento, mordent, trill, vibrato, layali\/mawwal phrases, etc.\n')
 }).describe('Full structured musicological metadata for a song'),
   "createdAt": zod.string(),
   "generationNote": zod.string().optional().describe('Present only when audio extraction was unavailable and the dossier was generated from knowledge only. Shown as an informational notice in the UI.\n')
@@ -150,7 +153,10 @@ export const ExportAllSongsResponse = zod.object({
   "instruments": zod.array(zod.string()).describe('Instruments active during this interval'),
   "vocals": zod.string().describe('Vocal description for this interval (which voices, harmony, solo, etc.)'),
   "notes": zod.string().describe('Musical notes — key, tempo, mode, melodic motion, dynamics')
-}).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music')
+}).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music'),
+  "maqamat": zod.array(zod.string()).optional().describe('Melodic modes (Maqamat) present in the recording. Each entry names the maqam and its tonic, e.g. \"Bayat — tonic: D, lowered 2nd & 6th\" or \"Sikah — tonic: E half-flat, characteristic neutral 3rd\".\n'),
+  "iqaat": zod.array(zod.string()).optional().describe('Rhythmic cycles (Iqa\'at) used. Each entry includes the name and time signature, e.g. \"Maqsum 4\/4\", \"Chobi 6\/8\", \"Sama\'i Thaqil 10\/8\".\n'),
+  "ornamentation": zod.string().nullish().describe('Description of specific vocal and instrumental ornamentation techniques heard: melisma (tahrir), glottal ornaments, messa di voce, portamento, mordent, trill, vibrato, layali\/mawwal phrases, etc.\n')
 }).describe('Full structured musicological metadata for a song'),
   "createdAt": zod.string(),
   "generationNote": zod.string().optional().describe('Present only when audio extraction was unavailable and the dossier was generated from knowledge only. Shown as an informational notice in the UI.\n')
@@ -418,7 +424,10 @@ export const GetSongResponse = zod.object({
   "instruments": zod.array(zod.string()).describe('Instruments active during this interval'),
   "vocals": zod.string().describe('Vocal description for this interval (which voices, harmony, solo, etc.)'),
   "notes": zod.string().describe('Musical notes — key, tempo, mode, melodic motion, dynamics')
-}).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music')
+}).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music'),
+  "maqamat": zod.array(zod.string()).optional().describe('Melodic modes (Maqamat) present in the recording. Each entry names the maqam and its tonic, e.g. \"Bayat — tonic: D, lowered 2nd & 6th\" or \"Sikah — tonic: E half-flat, characteristic neutral 3rd\".\n'),
+  "iqaat": zod.array(zod.string()).optional().describe('Rhythmic cycles (Iqa\'at) used. Each entry includes the name and time signature, e.g. \"Maqsum 4\/4\", \"Chobi 6\/8\", \"Sama\'i Thaqil 10\/8\".\n'),
+  "ornamentation": zod.string().nullish().describe('Description of specific vocal and instrumental ornamentation techniques heard: melisma (tahrir), glottal ornaments, messa di voce, portamento, mordent, trill, vibrato, layali\/mawwal phrases, etc.\n')
 }).describe('Full structured musicological metadata for a song'),
   "createdAt": zod.string(),
   "generationNote": zod.string().optional().describe('Present only when audio extraction was unavailable and the dossier was generated from knowledge only. Shown as an informational notice in the UI.\n')
@@ -458,7 +467,10 @@ export const UpdateSongBody = zod.object({
   "instruments": zod.array(zod.string()).describe('Instruments active during this interval'),
   "vocals": zod.string().describe('Vocal description for this interval (which voices, harmony, solo, etc.)'),
   "notes": zod.string().describe('Musical notes — key, tempo, mode, melodic motion, dynamics')
-}).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music')
+}).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music'),
+  "maqamat": zod.array(zod.string()).optional().describe('Melodic modes (Maqamat) present in the recording. Each entry names the maqam and its tonic, e.g. \"Bayat — tonic: D, lowered 2nd & 6th\" or \"Sikah — tonic: E half-flat, characteristic neutral 3rd\".\n'),
+  "iqaat": zod.array(zod.string()).optional().describe('Rhythmic cycles (Iqa\'at) used. Each entry includes the name and time signature, e.g. \"Maqsum 4\/4\", \"Chobi 6\/8\", \"Sama\'i Thaqil 10\/8\".\n'),
+  "ornamentation": zod.string().nullish().describe('Description of specific vocal and instrumental ornamentation techniques heard: melisma (tahrir), glottal ornaments, messa di voce, portamento, mordent, trill, vibrato, layali\/mawwal phrases, etc.\n')
 }).optional().describe('Full structured musicological metadata for a song')
 }).describe('Partial update for a song — supply any combination of top-level fields and\/or full metadata')
 
@@ -491,7 +503,10 @@ export const UpdateSongResponse = zod.object({
   "instruments": zod.array(zod.string()).describe('Instruments active during this interval'),
   "vocals": zod.string().describe('Vocal description for this interval (which voices, harmony, solo, etc.)'),
   "notes": zod.string().describe('Musical notes — key, tempo, mode, melodic motion, dynamics')
-}).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music')
+}).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music'),
+  "maqamat": zod.array(zod.string()).optional().describe('Melodic modes (Maqamat) present in the recording. Each entry names the maqam and its tonic, e.g. \"Bayat — tonic: D, lowered 2nd & 6th\" or \"Sikah — tonic: E half-flat, characteristic neutral 3rd\".\n'),
+  "iqaat": zod.array(zod.string()).optional().describe('Rhythmic cycles (Iqa\'at) used. Each entry includes the name and time signature, e.g. \"Maqsum 4\/4\", \"Chobi 6\/8\", \"Sama\'i Thaqil 10\/8\".\n'),
+  "ornamentation": zod.string().nullish().describe('Description of specific vocal and instrumental ornamentation techniques heard: melisma (tahrir), glottal ornaments, messa di voce, portamento, mordent, trill, vibrato, layali\/mawwal phrases, etc.\n')
 }).describe('Full structured musicological metadata for a song'),
   "createdAt": zod.string(),
   "generationNote": zod.string().optional().describe('Present only when audio extraction was unavailable and the dossier was generated from knowledge only. Shown as an informational notice in the UI.\n')

@@ -17,7 +17,8 @@ type FieldKey =
   | "title" | "singer" | "composer" | "era" | "geography"
   | "dialect" | "subject" | "history"
   | "instruments" | "voices" | "relatedSubjects" | "relatedWorks"
-  | "transcription" | "pronunciationNotes" | "track";
+  | "transcription" | "pronunciationNotes" | "track"
+  | "maqamat" | "iqaat" | "ornamentation";
 
 interface FieldDef {
   key: FieldKey;
@@ -42,6 +43,9 @@ const FIELDS: FieldDef[] = [
   { key: "transcription",      label: "Transcription",   color: "blue",   type: "string-long"  },
   { key: "pronunciationNotes", label: "Pronunciation",   color: "orange", type: "string-long"  },
   { key: "track",              label: "Track",           color: "blue",   type: "track"        },
+  { key: "maqamat",            label: "Maqamat",         color: "orange", type: "array"        },
+  { key: "iqaat",              label: "Iqa'at",          color: "blue",   type: "array"        },
+  { key: "ornamentation",      label: "Ornamentation",   color: "orange", type: "string-long"  },
 ];
 
 const BLUE   = "#5E94FF";
