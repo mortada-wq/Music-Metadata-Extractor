@@ -143,7 +143,12 @@ export function GenerateForm() {
       onSuccess: (song) => {
         queryClient.invalidateQueries({ queryKey: getListSongsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetSongStatsQueryKey() });
-        toast({ title: "Dossier generated", description: `Successfully cataloged "${song.title}".` });
+        toast({
+          title: "Dossier generated",
+          description: song.generationNote
+            ? song.generationNote
+            : `Successfully cataloged "${song.title}".`,
+        });
         setLocation(`/song/${song.id}`);
       },
       onError: (err) => {

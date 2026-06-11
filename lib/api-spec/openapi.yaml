@@ -638,6 +638,11 @@ components:
           $ref: "#/components/schemas/SongMetadata"
         createdAt:
           type: string
+        generationNote:
+          type: string
+          description: >
+            Present only when audio extraction was unavailable and the dossier was
+            generated from knowledge only. Shown as an informational notice in the UI.
       required:
         - id
         - title

@@ -80,6 +80,9 @@ export interface Song {
   inputValue: string;
   metadata: SongMetadata;
   createdAt: string;
+  /** Present only when audio extraction was unavailable and the dossier was generated from knowledge only. Shown as an informational notice in the UI.
+   */
+  generationNote?: string;
 }
 
 export interface SongInput {

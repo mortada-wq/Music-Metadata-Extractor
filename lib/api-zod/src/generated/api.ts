@@ -52,7 +52,8 @@ export const ListSongsResponseItem = zod.object({
   "notes": zod.string().describe('Musical notes — key, tempo, mode, melodic motion, dynamics')
 }).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music')
 }).describe('Full structured musicological metadata for a song'),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "generationNote": zod.string().optional().describe('Present only when audio extraction was unavailable and the dossier was generated from knowledge only. Shown as an informational notice in the UI.\n')
 })
 export const ListSongsResponse = zod.array(ListSongsResponseItem)
 
@@ -151,7 +152,8 @@ export const ExportAllSongsResponse = zod.object({
   "notes": zod.string().describe('Musical notes — key, tempo, mode, melodic motion, dynamics')
 }).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music')
 }).describe('Full structured musicological metadata for a song'),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "generationNote": zod.string().optional().describe('Present only when audio extraction was unavailable and the dossier was generated from knowledge only. Shown as an informational notice in the UI.\n')
 }))
 })
 
@@ -418,7 +420,8 @@ export const GetSongResponse = zod.object({
   "notes": zod.string().describe('Musical notes — key, tempo, mode, melodic motion, dynamics')
 }).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music')
 }).describe('Full structured musicological metadata for a song'),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "generationNote": zod.string().optional().describe('Present only when audio extraction was unavailable and the dossier was generated from knowledge only. Shown as an informational notice in the UI.\n')
 })
 
 
@@ -490,7 +493,8 @@ export const UpdateSongResponse = zod.object({
   "notes": zod.string().describe('Musical notes — key, tempo, mode, melodic motion, dynamics')
 }).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music')
 }).describe('Full structured musicological metadata for a song'),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "generationNote": zod.string().optional().describe('Present only when audio extraction was unavailable and the dossier was generated from knowledge only. Shown as an informational notice in the UI.\n')
 })
 
 

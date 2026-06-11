@@ -123,6 +123,37 @@ export function isVideoUnavailableError(err: unknown): boolean {
   return /Video unavailable|Private video|This video is not available/i.test(msg);
 }
 
+/**
+ * Returns true when the yt-dlp binary was not found (ENOENT from spawn).
+ * This happens in production containers where yt-dlp is not installed.
+ */
+export function isYtDlpUnavailableError(err: unknown): boolean {
+  if (err instanceof Error) {
+    const nodeErr = err as NodeJS.ErrnoException;
+    if (nodeErr.code === "ENOENT") return true;
+    if (/spawn.*ENOENT/i.test(err.message)) return true;
+  }
+  return false;
+}
+
+/** Cached result of the yt-dlp availability probe (null = not yet checked). */
+let ytDlpAvailable: boolean | null = null;
+
+/**
+ * Probe yt-dlp availability once, then cache the result.
+ * Returns false if the binary is not on PATH / not executable.
+ */
+async function checkYtDlpAvailable(): Promise<boolean> {
+  if (ytDlpAvailable !== null) return ytDlpAvailable;
+  try {
+    await runYtDlp(["--version"], 8_000);
+    ytDlpAvailable = true;
+  } catch (err) {
+    ytDlpAvailable = !isYtDlpUnavailableError(err);
+  }
+  return ytDlpAvailable;
+}
+
 export async function fetchYouTubeOEmbedTitle(url: string): Promise<string | null> {
   try {
     const endpoint = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
@@ -281,6 +312,13 @@ export async function fetchAndDownloadAudio(
   input: string,
   inputType: "youtube" | "name",
 ): Promise<DownloadedAudio> {
+  const available = await checkYtDlpAvailable();
+  if (!available) {
+    const err = new Error("yt-dlp binary not found") as NodeJS.ErrnoException;
+    err.code = "ENOENT";
+    throw err;
+  }
+
   const resolvedFrom: "youtube-url" | "youtube-search" =
     inputType === "youtube" ? "youtube-url" : "youtube-search";
   const metaTarget = inputType === "youtube" ? input : `ytsearch1:${input}`;

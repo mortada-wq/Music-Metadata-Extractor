@@ -6,7 +6,7 @@ import { db, songsTable, type Song as DbSong } from "@workspace/db";
 import { GenerateSongBody, GetSongParams, DeleteSongParams } from "@workspace/api-zod";
 import { classifyInput, generateSongMetadata, generateFromKnowledgeOnly, generateFromUploadedAudio, isAllowedYouTubeUrl, isBotCheckError } from "../lib/songMetadata";
 import { getSettings } from "./admin";
-import { isVideoUnavailableError, fetchYouTubeOEmbedTitle } from "../lib/audioExtraction";
+import { isVideoUnavailableError, isYtDlpUnavailableError, fetchYouTubeOEmbedTitle } from "../lib/audioExtraction";
 
 const upload = multer({
   dest: "/tmp",
@@ -118,13 +118,43 @@ router.post("/songs", async (req, res) => {
   let metadata;
   let savedInputType = inputType;
   let savedInputValue = input;
+  let generationNote: string | undefined;
 
   try {
     metadata = await generateSongMetadata(input, inputType, activeProvider, activeModel);
   } catch (err) {
     req.log.error({ err }, "Primary generation failed");
 
-    if (isBotCheckError(err)) {
+    if (isYtDlpUnavailableError(err)) {
+      // yt-dlp binary is not installed in this environment (production container).
+      // Resolve the video title via oEmbed (no auth needed) and fall back to knowledge-only.
+      req.log.warn({ input }, "yt-dlp unavailable — falling back to oEmbed + knowledge-only generation");
+      let fallbackTitle: string | null = inputType === "name" ? input : null;
+      if (inputType === "youtube") {
+        fallbackTitle = await fetchYouTubeOEmbedTitle(input);
+        req.log.info({ fallbackTitle }, "yt-dlp unavailable — resolved oEmbed title for knowledge fallback");
+      }
+      if (!fallbackTitle) {
+        return res.status(503).json({
+          error:
+            "Audio extraction is unavailable in this environment and the video title could not be resolved. Try entering the song name directly instead of a link.",
+        });
+      }
+      try {
+        req.log.info({ fallbackTitle, activeProvider, activeModel }, "yt-dlp unavailable — knowledge-only fallback");
+        metadata = await generateFromKnowledgeOnly(fallbackTitle, activeProvider, activeModel);
+        savedInputType = "name";
+        savedInputValue = fallbackTitle;
+        generationNote =
+          "Dossier generated from knowledge only — audio extraction is unavailable in this environment.";
+      } catch (fallbackErr) {
+        req.log.error({ fallbackErr }, "Knowledge-only fallback failed");
+        return res.status(503).json({
+          error:
+            "Audio extraction is unavailable and the knowledge-only fallback also failed. Please try again.",
+        });
+      }
+    } else if (isBotCheckError(err)) {
       // YouTube is blocking yt-dlp on this IP. Fall back to knowledge-only.
       // For a URL we first resolve the video title via oEmbed (no auth needed).
       let fallbackTitle: string | null = inputType === "name" ? input : null;
@@ -188,7 +218,8 @@ router.post("/songs", async (req, res) => {
     })
     .returning();
 
-  return res.status(201).json(serialize(row));
+  const serialized = serialize(row);
+  return res.status(201).json(generationNote ? { ...serialized, generationNote } : serialized);
 });
 
 router.get("/songs/:id", async (req, res) => {
