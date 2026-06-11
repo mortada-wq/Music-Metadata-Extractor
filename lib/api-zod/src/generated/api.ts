@@ -90,6 +90,14 @@ export const GetSongStatsResponse = zod.object({
   "byDialect": zod.array(zod.object({
   "label": zod.string(),
   "count": zod.number()
+})),
+  "byMaqam": zod.array(zod.object({
+  "label": zod.string(),
+  "count": zod.number()
+})),
+  "byIqa": zod.array(zod.object({
+  "label": zod.string(),
+  "count": zod.number()
 }))
 })
 

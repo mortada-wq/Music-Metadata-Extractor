@@ -40,6 +40,23 @@ function countBy(rows: DbSong[], key: (r: DbSong) => string) {
     .sort((a, b) => b.count - a.count);
 }
 
+function extractMaqamName(entry: string): string {
+  return (entry.split(" — ")[0] || entry).trim();
+}
+
+function countByArray(rows: DbSong[], extract: (r: DbSong) => string[]) {
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    for (const label of extract(r)) {
+      const key = label.trim();
+      if (key) map.set(key, (map.get(key) ?? 0) + 1);
+    }
+  }
+  return Array.from(map.entries())
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
 router.post("/songs/upload", upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file provided" });
@@ -82,6 +99,10 @@ router.get("/songs/stats", async (_req, res) => {
     byEra: countBy(rows, (r) => r.era),
     byGeography: countBy(rows, (r) => r.geography),
     byDialect: countBy(rows, (r) => r.metadata?.dialect ?? "Unknown"),
+    byMaqam: countByArray(rows, (r) =>
+      (r.metadata?.maqamat ?? []).map(extractMaqamName)
+    ),
+    byIqa: countByArray(rows, (r) => r.metadata?.iqaat ?? []),
   });
 });
 

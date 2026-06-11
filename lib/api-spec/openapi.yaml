@@ -725,11 +725,21 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/StatCount"
+        byMaqam:
+          type: array
+          items:
+            $ref: "#/components/schemas/StatCount"
+        byIqa:
+          type: array
+          items:
+            $ref: "#/components/schemas/StatCount"
       required:
         - total
         - byEra
         - byGeography
         - byDialect
+        - byMaqam
+        - byIqa
     RagExport:
       type: object
       properties:

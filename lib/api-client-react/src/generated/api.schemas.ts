@@ -123,6 +123,8 @@ export interface SongStats {
   byEra: StatCount[];
   byGeography: StatCount[];
   byDialect: StatCount[];
+  byMaqam: StatCount[];
+  byIqa: StatCount[];
 }
 
 export interface RagExport {
