@@ -442,6 +442,7 @@ export const ReanalyzeSongResponse = zod.object({
   "ornamentation": zod.string().nullish().describe('Description of specific vocal and instrumental ornamentation techniques heard: melisma (tahrir), glottal ornaments, messa di voce, portamento, mordent, trill, vibrato, layali\/mawwal phrases, etc.\n')
 }).describe('Full structured musicological metadata for a song'),
   "createdAt": zod.string(),
+  "analyzedAt": zod.string().describe('ISO-8601 timestamp of when the dossier was last analyzed or re-analyzed'),
   "generationNote": zod.string().optional().describe('Present only when audio extraction was unavailable and the dossier was generated from knowledge only. Shown as an informational notice in the UI.\n')
 }),
   "draft": zod.object({

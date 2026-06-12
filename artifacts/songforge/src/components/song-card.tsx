@@ -1,6 +1,21 @@
 import { Song } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { Globe, Clock, Music2, FileText, ImageIcon, ArrowLeft } from "lucide-react";
+import { Globe, Clock, Music2, FileText, ImageIcon, ArrowLeft, RefreshCw } from "lucide-react";
+
+function relativeTime(isoString: string): string {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  const years = Math.floor(months / 12);
+  return `${years}yr ago`;
+}
 
 type CardType = "music" | "image" | "text";
 
@@ -124,6 +139,10 @@ export function SongCard({ song, style, className }: { song: Song; style?: React
             <div className="flex items-center gap-2 text-xs text-muted-foreground" dir="rtl">
               <Globe className="w-3 h-3 opacity-60 shrink-0" />
               <span className="truncate">{song.geography}</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
+              <RefreshCw className="w-3 h-3 opacity-60 shrink-0" />
+              <span>Analyzed {relativeTime(song.analyzedAt)}</span>
             </div>
           </div>
 
