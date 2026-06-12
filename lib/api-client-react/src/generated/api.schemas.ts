@@ -94,6 +94,25 @@ export interface Song {
   generationNote?: string;
 }
 
+/**
+ * Response from the reanalyze endpoint — current saved song plus the newly generated draft metadata (not yet written to DB)
+ */
+export interface ReanalyzeDraftResponse {
+  current: Song;
+  draft: SongMetadata;
+  /** Present when the draft was generated from knowledge only (audio unavailable). */
+  generationNote?: string;
+}
+
+/**
+ * Draft metadata to commit to the song row
+ */
+export interface CommitDraftInput {
+  metadata: SongMetadata;
+  /** Optional generation note to persist alongside the committed metadata */
+  generationNote?: string;
+}
+
 export interface SongInput {
   /**
      * A YouTube link or the name of a song

@@ -251,7 +251,7 @@ router.post("/songs/:id/reanalyze", async (req, res) => {
   if (!current) return res.status(404).json({ error: "Song not found" });
 
   const { activeProvider, activeModel } = await getSettings();
-  req.log.info({ id: parsed.data.id, activeProvider, activeModel, inputType: current.inputType }, "Re-analyzing full dossier");
+  req.log.info({ id: parsed.data.id, activeProvider, activeModel, inputType: current.inputType }, "Re-analyzing full dossier (draft mode)");
 
   const inputType = current.inputType as "youtube" | "name" | "file";
   const inputValue = current.inputValue;
@@ -326,6 +326,28 @@ router.post("/songs/:id/reanalyze", async (req, res) => {
     }
   }
 
+  // Return the draft for user review — do NOT write to DB yet
+  return res.json({
+    current: serialize(current),
+    draft: metadata,
+    ...(generationNote ? { generationNote } : {}),
+  });
+});
+
+router.post("/songs/:id/commit-draft", async (req, res) => {
+  const parsed = GetSongParams.safeParse(req.params);
+  if (!parsed.success) return res.status(404).json({ error: "Song not found" });
+
+  const [current] = await db.select().from(songsTable).where(eq(songsTable.id, parsed.data.id));
+  if (!current) return res.status(404).json({ error: "Song not found" });
+
+  const body = req.body as { metadata?: unknown; generationNote?: string };
+  if (!body.metadata || typeof body.metadata !== "object") {
+    return res.status(400).json({ error: "A metadata object is required" });
+  }
+
+  const metadata = body.metadata as typeof current.metadata;
+
   const [updated] = await db
     .update(songsTable)
     .set({
@@ -338,8 +360,9 @@ router.post("/songs/:id/reanalyze", async (req, res) => {
     .where(eq(songsTable.id, parsed.data.id))
     .returning();
 
+  req.log.info({ id: parsed.data.id }, "Draft committed to DB");
   const serialized = serialize(updated);
-  return res.json(generationNote ? { ...serialized, generationNote } : serialized);
+  return res.json(body.generationNote ? { ...serialized, generationNote: body.generationNote } : serialized);
 });
 
 router.post("/songs/:id/reanalyze-dna", async (req, res) => {

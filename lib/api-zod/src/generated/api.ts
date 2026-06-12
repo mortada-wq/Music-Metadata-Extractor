@@ -397,14 +397,120 @@ export const DeleteUserParams = zod.object({
 
 
 /**
- * Reruns the complete AI pipeline (audio or knowledge-only) and replaces all metadata fields on the song row
- * @summary Re-analyze a full dossier for an existing song
+ * Reruns the complete AI pipeline and returns both the current song and the new draft metadata without writing to the database. The caller must POST to /songs/{id}/commit-draft to persist the draft.
+ * @summary Re-analyze a full dossier for an existing song (returns draft for review)
  */
 export const ReanalyzeSongParams = zod.object({
   "id": zod.coerce.number()
 })
 
 export const ReanalyzeSongResponse = zod.object({
+  "current": zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "singer": zod.string(),
+  "era": zod.string(),
+  "geography": zod.string(),
+  "inputType": zod.enum(['youtube', 'name', 'file']),
+  "inputValue": zod.string(),
+  "metadata": zod.object({
+  "title": zod.string(),
+  "singer": zod.string().describe('Performing singer(s)'),
+  "composer": zod.string(),
+  "era": zod.string().describe('Time period \/ musical era'),
+  "geography": zod.string().describe('Region or country of origin'),
+  "history": zod.string().describe('Historical and cultural background'),
+  "subject": zod.string().describe('Main theme or subject of the song'),
+  "relatedSubjects": zod.array(zod.string()),
+  "dialect": zod.string().describe('Language and dialect of the lyrics'),
+  "instruments": zod.array(zod.string()).describe('All instruments used'),
+  "voices": zod.array(zod.string()).describe('All distinct voices \/ vocal parts'),
+  "relatedWorks": zod.array(zod.string()),
+  "transcription": zod.string().describe('Full lyric transcription'),
+  "pronunciationNotes": zod.string().describe('Detailed notes on how to pronounce the lyrics'),
+  "track": zod.array(zod.object({
+  "timestamp": zod.string().describe('Start time of this interval, e.g. \"0:00\" or \"1:24\"'),
+  "label": zod.string().describe('Section name, e.g. \"Intro\", \"Verse 1\", \"Chorus\", \"Instrumental break\"'),
+  "instruments": zod.array(zod.string()).describe('Instruments active during this interval'),
+  "vocals": zod.string().describe('Vocal description for this interval (which voices, harmony, solo, etc.)'),
+  "notes": zod.string().describe('Musical notes — key, tempo, mode, melodic motion, dynamics')
+}).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music'),
+  "maqamat": zod.array(zod.string()).optional().describe('Melodic modes (Maqamat) present in the recording. Each entry names the maqam and its tonic, e.g. \"Bayat — tonic: D, lowered 2nd & 6th\" or \"Sikah — tonic: E half-flat, characteristic neutral 3rd\".\n'),
+  "iqaat": zod.array(zod.string()).optional().describe('Rhythmic cycles (Iqa\'at) used. Each entry includes the name and time signature, e.g. \"Maqsum 4\/4\", \"Chobi 6\/8\", \"Sama\'i Thaqil 10\/8\".\n'),
+  "ornamentation": zod.string().nullish().describe('Description of specific vocal and instrumental ornamentation techniques heard: melisma (tahrir), glottal ornaments, messa di voce, portamento, mordent, trill, vibrato, layali\/mawwal phrases, etc.\n')
+}).describe('Full structured musicological metadata for a song'),
+  "createdAt": zod.string(),
+  "generationNote": zod.string().optional().describe('Present only when audio extraction was unavailable and the dossier was generated from knowledge only. Shown as an informational notice in the UI.\n')
+}),
+  "draft": zod.object({
+  "title": zod.string(),
+  "singer": zod.string().describe('Performing singer(s)'),
+  "composer": zod.string(),
+  "era": zod.string().describe('Time period \/ musical era'),
+  "geography": zod.string().describe('Region or country of origin'),
+  "history": zod.string().describe('Historical and cultural background'),
+  "subject": zod.string().describe('Main theme or subject of the song'),
+  "relatedSubjects": zod.array(zod.string()),
+  "dialect": zod.string().describe('Language and dialect of the lyrics'),
+  "instruments": zod.array(zod.string()).describe('All instruments used'),
+  "voices": zod.array(zod.string()).describe('All distinct voices \/ vocal parts'),
+  "relatedWorks": zod.array(zod.string()),
+  "transcription": zod.string().describe('Full lyric transcription'),
+  "pronunciationNotes": zod.string().describe('Detailed notes on how to pronounce the lyrics'),
+  "track": zod.array(zod.object({
+  "timestamp": zod.string().describe('Start time of this interval, e.g. \"0:00\" or \"1:24\"'),
+  "label": zod.string().describe('Section name, e.g. \"Intro\", \"Verse 1\", \"Chorus\", \"Instrumental break\"'),
+  "instruments": zod.array(zod.string()).describe('Instruments active during this interval'),
+  "vocals": zod.string().describe('Vocal description for this interval (which voices, harmony, solo, etc.)'),
+  "notes": zod.string().describe('Musical notes — key, tempo, mode, melodic motion, dynamics')
+}).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music'),
+  "maqamat": zod.array(zod.string()).optional().describe('Melodic modes (Maqamat) present in the recording. Each entry names the maqam and its tonic, e.g. \"Bayat — tonic: D, lowered 2nd & 6th\" or \"Sikah — tonic: E half-flat, characteristic neutral 3rd\".\n'),
+  "iqaat": zod.array(zod.string()).optional().describe('Rhythmic cycles (Iqa\'at) used. Each entry includes the name and time signature, e.g. \"Maqsum 4\/4\", \"Chobi 6\/8\", \"Sama\'i Thaqil 10\/8\".\n'),
+  "ornamentation": zod.string().nullish().describe('Description of specific vocal and instrumental ornamentation techniques heard: melisma (tahrir), glottal ornaments, messa di voce, portamento, mordent, trill, vibrato, layali\/mawwal phrases, etc.\n')
+}).describe('Full structured musicological metadata for a song'),
+  "generationNote": zod.string().optional().describe('Present when the draft was generated from knowledge only (audio unavailable).')
+}).describe('Response from the reanalyze endpoint — current saved song plus the newly generated draft metadata (not yet written to DB)')
+
+
+/**
+ * Accepts a draft SongMetadata produced by /songs/{id}/reanalyze and writes it to the song row, replacing the current metadata.
+ * @summary Commit a previously generated draft to the database
+ */
+export const CommitDraftParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CommitDraftBody = zod.object({
+  "metadata": zod.object({
+  "title": zod.string(),
+  "singer": zod.string().describe('Performing singer(s)'),
+  "composer": zod.string(),
+  "era": zod.string().describe('Time period \/ musical era'),
+  "geography": zod.string().describe('Region or country of origin'),
+  "history": zod.string().describe('Historical and cultural background'),
+  "subject": zod.string().describe('Main theme or subject of the song'),
+  "relatedSubjects": zod.array(zod.string()),
+  "dialect": zod.string().describe('Language and dialect of the lyrics'),
+  "instruments": zod.array(zod.string()).describe('All instruments used'),
+  "voices": zod.array(zod.string()).describe('All distinct voices \/ vocal parts'),
+  "relatedWorks": zod.array(zod.string()),
+  "transcription": zod.string().describe('Full lyric transcription'),
+  "pronunciationNotes": zod.string().describe('Detailed notes on how to pronounce the lyrics'),
+  "track": zod.array(zod.object({
+  "timestamp": zod.string().describe('Start time of this interval, e.g. \"0:00\" or \"1:24\"'),
+  "label": zod.string().describe('Section name, e.g. \"Intro\", \"Verse 1\", \"Chorus\", \"Instrumental break\"'),
+  "instruments": zod.array(zod.string()).describe('Instruments active during this interval'),
+  "vocals": zod.string().describe('Vocal description for this interval (which voices, harmony, solo, etc.)'),
+  "notes": zod.string().describe('Musical notes — key, tempo, mode, melodic motion, dynamics')
+}).describe('A single interval in the detailed track breakdown')).describe('Interval-by-interval breakdown of the music'),
+  "maqamat": zod.array(zod.string()).optional().describe('Melodic modes (Maqamat) present in the recording. Each entry names the maqam and its tonic, e.g. \"Bayat — tonic: D, lowered 2nd & 6th\" or \"Sikah — tonic: E half-flat, characteristic neutral 3rd\".\n'),
+  "iqaat": zod.array(zod.string()).optional().describe('Rhythmic cycles (Iqa\'at) used. Each entry includes the name and time signature, e.g. \"Maqsum 4\/4\", \"Chobi 6\/8\", \"Sama\'i Thaqil 10\/8\".\n'),
+  "ornamentation": zod.string().nullish().describe('Description of specific vocal and instrumental ornamentation techniques heard: melisma (tahrir), glottal ornaments, messa di voce, portamento, mordent, trill, vibrato, layali\/mawwal phrases, etc.\n')
+}).describe('Full structured musicological metadata for a song'),
+  "generationNote": zod.string().optional().describe('Optional generation note to persist alongside the committed metadata')
+}).describe('Draft metadata to commit to the song row')
+
+export const CommitDraftResponse = zod.object({
   "id": zod.number(),
   "title": zod.string(),
   "singer": zod.string(),

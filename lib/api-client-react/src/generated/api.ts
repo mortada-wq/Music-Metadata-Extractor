@@ -24,6 +24,7 @@ import type {
   AdminUser,
   AuthBody,
   AuthUser,
+  CommitDraftInput,
   Entry,
   Error,
   ExportProject200,
@@ -38,6 +39,7 @@ import type {
   ProjectSummary,
   PublicProject,
   RagExport,
+  ReanalyzeDraftResponse,
   Song,
   SongInput,
   SongStats,
@@ -1842,12 +1844,12 @@ export const getReanalyzeSongUrl = (id: number,) => {
 }
 
 /**
- * Reruns the complete AI pipeline (audio or knowledge-only) and replaces all metadata fields on the song row
- * @summary Re-analyze a full dossier for an existing song
+ * Reruns the complete AI pipeline and returns both the current song and the new draft metadata without writing to the database. The caller must POST to /songs/{id}/commit-draft to persist the draft.
+ * @summary Re-analyze a full dossier for an existing song (returns draft for review)
  */
-export const reanalyzeSong = async (id: number, options?: RequestInit): Promise<Song> => {
+export const reanalyzeSong = async (id: number, options?: RequestInit): Promise<ReanalyzeDraftResponse> => {
 
-  return customFetch<Song>(getReanalyzeSongUrl(id),
+  return customFetch<ReanalyzeDraftResponse>(getReanalyzeSongUrl(id),
   {
     ...options,
     method: 'POST'
@@ -1891,7 +1893,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ReanalyzeSongMutationError = ErrorType<Error>
 
     /**
- * @summary Re-analyze a full dossier for an existing song
+ * @summary Re-analyze a full dossier for an existing song (returns draft for review)
  */
 export const useReanalyzeSong = <TError = ErrorType<Error>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reanalyzeSong>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1902,6 +1904,79 @@ export const useReanalyzeSong = <TError = ErrorType<Error>,
         TContext
       > => {
       return useMutation(getReanalyzeSongMutationOptions(options));
+    }
+
+export const getCommitDraftUrl = (id: number,) => {
+
+
+
+
+  return `/api/songs/${id}/commit-draft`
+}
+
+/**
+ * Accepts a draft SongMetadata produced by /songs/{id}/reanalyze and writes it to the song row, replacing the current metadata.
+ * @summary Commit a previously generated draft to the database
+ */
+export const commitDraft = async (id: number,
+    commitDraftInput: CommitDraftInput, options?: RequestInit): Promise<Song> => {
+
+  return customFetch<Song>(getCommitDraftUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      commitDraftInput,)
+  }
+);}
+
+
+
+
+export const getCommitDraftMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof commitDraft>>, TError,{id: number;data: BodyType<CommitDraftInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof commitDraft>>, TError,{id: number;data: BodyType<CommitDraftInput>}, TContext> => {
+
+const mutationKey = ['commitDraft'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof commitDraft>>, {id: number;data: BodyType<CommitDraftInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  commitDraft(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CommitDraftMutationResult = NonNullable<Awaited<ReturnType<typeof commitDraft>>>
+    export type CommitDraftMutationBody = BodyType<CommitDraftInput>
+    export type CommitDraftMutationError = ErrorType<Error>
+
+    /**
+ * @summary Commit a previously generated draft to the database
+ */
+export const useCommitDraft = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof commitDraft>>, TError,{id: number;data: BodyType<CommitDraftInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof commitDraft>>,
+        TError,
+        {id: number;data: BodyType<CommitDraftInput>},
+        TContext
+      > => {
+      return useMutation(getCommitDraftMutationOptions(options));
     }
 
 export const getReanalyzeDnaUrl = (id: number,) => {

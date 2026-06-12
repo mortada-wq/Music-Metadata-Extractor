@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { 
   useGetSong, 
@@ -8,10 +9,12 @@ import {
   getListSongsQueryKey, 
   getGetSongStatsQueryKey 
 } from "@workspace/api-client-react";
+import type { Song, ReanalyzeDraftResponse } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Timeline } from "@/components/timeline";
+import { DraftDiff } from "@/components/draft-diff";
 import { downloadJson } from "@/lib/export";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -45,6 +48,8 @@ export function SongDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const [draft, setDraft] = useState<ReanalyzeDraftResponse | null>(null);
+
   const { data: song, isLoading } = useGetSong(id, { 
     query: { enabled: !!id, queryKey: getGetSongQueryKey(id) } 
   });
@@ -77,11 +82,9 @@ export function SongDetail() {
 
   const reanalyzeFull = useReanalyzeSong({
     mutation: {
-      onSuccess: (updated) => {
-        queryClient.setQueryData(getGetSongQueryKey(id), updated);
-        queryClient.invalidateQueries({ queryKey: getListSongsQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetSongStatsQueryKey() });
-        toast({ title: "Dossier refreshed." });
+      onSuccess: (response) => {
+        setDraft(response);
+        toast({ title: "Draft ready — review the changes below." });
       },
       onError: () => {
         toast({ title: "Re-analysis failed. Please try again.", variant: "destructive" });
@@ -120,8 +123,13 @@ export function SongDetail() {
   const missingDna = !m.maqamat?.length && !m.iqaat?.length && !m.ornamentation;
 
   const handleExport = () => {
-    downloadJson(song, `damma-${song.id}-${song.title.toLowerCase().replace(/\\s+/g, '-')}.json`);
+    downloadJson(song, `damma-${song.id}-${song.title.toLowerCase().replace(/\s+/g, '-')}.json`);
     toast({ title: "Dossier exported" });
+  };
+
+  const handleDraftAccepted = (updated: Song) => {
+    queryClient.setQueryData(getGetSongQueryKey(id), updated);
+    setDraft(null);
   };
 
   return (
@@ -137,7 +145,7 @@ export function SongDetail() {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={isAnalyzing}
+                disabled={isAnalyzing || !!draft}
                 className="rounded-full bg-transparent border-brand-blue/50 text-brand-blue hover:bg-brand-blue/10 hover:text-brand-blue active:scale-[0.98] transition-transform"
                 data-testid="button-reanalyze-menu"
               >
@@ -149,7 +157,7 @@ export function SongDetail() {
             <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuItem
                 onClick={() => reanalyzeFull.mutate({ id: song.id })}
-                disabled={isAnalyzing}
+                disabled={isAnalyzing || !!draft}
                 data-testid="button-reanalyze-full"
                 className="cursor-pointer"
               >
@@ -161,7 +169,7 @@ export function SongDetail() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => reanalyzeDna.mutate({ id: song.id })}
-                    disabled={isAnalyzing}
+                    disabled={isAnalyzing || !!draft}
                     data-testid="button-reanalyze-dna"
                     className="cursor-pointer"
                   >
@@ -202,6 +210,18 @@ export function SongDetail() {
           </AlertDialog>
         </div>
       </div>
+
+      {/* Draft diff panel */}
+      {draft && (
+        <div className="mb-8">
+          <DraftDiff
+            songId={id}
+            response={draft}
+            onAccepted={handleDraftAccepted}
+            onDiscard={() => setDraft(null)}
+          />
+        </div>
+      )}
 
       {/* Main Title Area */}
       <div className="mb-12 border-b border-border/60 pb-8">
