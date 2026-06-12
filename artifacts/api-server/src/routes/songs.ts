@@ -243,6 +243,105 @@ router.post("/songs", async (req, res) => {
   return res.status(201).json(generationNote ? { ...serialized, generationNote } : serialized);
 });
 
+router.post("/songs/:id/reanalyze", async (req, res) => {
+  const parsed = GetSongParams.safeParse(req.params);
+  if (!parsed.success) return res.status(404).json({ error: "Song not found" });
+
+  const [current] = await db.select().from(songsTable).where(eq(songsTable.id, parsed.data.id));
+  if (!current) return res.status(404).json({ error: "Song not found" });
+
+  const { activeProvider, activeModel } = await getSettings();
+  req.log.info({ id: parsed.data.id, activeProvider, activeModel, inputType: current.inputType }, "Re-analyzing full dossier");
+
+  const inputType = current.inputType as "youtube" | "name" | "file";
+  const inputValue = current.inputValue;
+
+  let metadata;
+  let generationNote: string | undefined;
+
+  // File uploads can't be re-downloaded; fall back to knowledge-only from the song title
+  if (inputType === "file") {
+    const fallbackTitle = current.metadata?.title || current.title;
+    try {
+      metadata = await generateFromKnowledgeOnly(fallbackTitle, activeProvider, activeModel);
+      generationNote = "Dossier regenerated from knowledge only — original audio file is no longer available.";
+    } catch (err) {
+      req.log.error({ err }, "Knowledge-only re-analysis failed for uploaded file");
+      return res.status(502).json({ error: "Re-analysis failed. Please try again." });
+    }
+  } else {
+    try {
+      metadata = await generateSongMetadata(inputValue, inputType, activeProvider, activeModel);
+    } catch (err) {
+      req.log.error({ err }, "Primary re-analysis generation failed");
+
+      if (isYtDlpUnavailableError(err)) {
+        let fallbackTitle: string | null = inputType === "name" ? inputValue : null;
+        if (inputType === "youtube") {
+          fallbackTitle = await fetchYouTubeOEmbedTitle(inputValue);
+        }
+        if (!fallbackTitle) {
+          return res.status(503).json({
+            error: "Audio extraction is unavailable in this environment. Try entering the song name directly.",
+          });
+        }
+        try {
+          metadata = await generateFromKnowledgeOnly(fallbackTitle, activeProvider, activeModel);
+          generationNote = "Dossier regenerated from knowledge only — audio extraction is unavailable in this environment.";
+        } catch (fallbackErr) {
+          req.log.error({ fallbackErr }, "Knowledge-only fallback failed during re-analysis");
+          return res.status(503).json({ error: "Audio extraction is unavailable and the knowledge-only fallback also failed. Please try again." });
+        }
+      } else if (isBotCheckError(err)) {
+        let fallbackTitle: string | null = inputType === "name" ? inputValue : null;
+        if (inputType === "youtube") {
+          fallbackTitle = await fetchYouTubeOEmbedTitle(inputValue);
+        }
+        if (!fallbackTitle) {
+          return res.status(503).json({
+            error: "YouTube is blocking automated access. Try using the song name instead.",
+          });
+        }
+        try {
+          metadata = await generateFromKnowledgeOnly(fallbackTitle, activeProvider, activeModel);
+        } catch (fallbackErr) {
+          req.log.error({ fallbackErr }, "Knowledge-only fallback failed during re-analysis");
+          return res.status(503).json({ error: "YouTube is blocking access and the knowledge-only fallback also failed. Please try again." });
+        }
+      } else if (inputType === "youtube" && isVideoUnavailableError(err)) {
+        const oEmbedTitle = await fetchYouTubeOEmbedTitle(inputValue);
+        if (oEmbedTitle) {
+          try {
+            metadata = await generateSongMetadata(oEmbedTitle, "name", activeProvider, activeModel);
+          } catch (fallbackErr) {
+            req.log.error({ fallbackErr }, "Name-based fallback failed during re-analysis");
+            return res.status(502).json({ error: "Could not re-analyze this song. The video may be unavailable. Please try again." });
+          }
+        } else {
+          return res.status(502).json({ error: "That video is unavailable. The dossier could not be refreshed." });
+        }
+      } else {
+        return res.status(502).json({ error: "Re-analysis failed. Please try again." });
+      }
+    }
+  }
+
+  const [updated] = await db
+    .update(songsTable)
+    .set({
+      title: metadata.title || current.title,
+      singer: metadata.singer || current.singer,
+      era: metadata.era || current.era,
+      geography: metadata.geography || current.geography,
+      metadata,
+    })
+    .where(eq(songsTable.id, parsed.data.id))
+    .returning();
+
+  const serialized = serialize(updated);
+  return res.json(generationNote ? { ...serialized, generationNote } : serialized);
+});
+
 router.post("/songs/:id/reanalyze-dna", async (req, res) => {
   const parsed = GetSongParams.safeParse(req.params);
   if (!parsed.success) return res.status(404).json({ error: "Song not found" });

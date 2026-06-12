@@ -1833,6 +1833,77 @@ export const useDeleteUser = <TError = ErrorType<unknown>,
       return useMutation(getDeleteUserMutationOptions(options));
     }
 
+export const getReanalyzeSongUrl = (id: number,) => {
+
+
+
+
+  return `/api/songs/${id}/reanalyze`
+}
+
+/**
+ * Reruns the complete AI pipeline (audio or knowledge-only) and replaces all metadata fields on the song row
+ * @summary Re-analyze a full dossier for an existing song
+ */
+export const reanalyzeSong = async (id: number, options?: RequestInit): Promise<Song> => {
+
+  return customFetch<Song>(getReanalyzeSongUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getReanalyzeSongMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reanalyzeSong>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reanalyzeSong>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['reanalyzeSong'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reanalyzeSong>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  reanalyzeSong(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReanalyzeSongMutationResult = NonNullable<Awaited<ReturnType<typeof reanalyzeSong>>>
+
+    export type ReanalyzeSongMutationError = ErrorType<Error>
+
+    /**
+ * @summary Re-analyze a full dossier for an existing song
+ */
+export const useReanalyzeSong = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reanalyzeSong>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reanalyzeSong>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getReanalyzeSongMutationOptions(options));
+    }
+
 export const getReanalyzeDnaUrl = (id: number,) => {
 
 

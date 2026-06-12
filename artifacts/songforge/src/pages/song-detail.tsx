@@ -3,6 +3,7 @@ import {
   useGetSong, 
   useDeleteSong,
   useReanalyzeDna,
+  useReanalyzeSong,
   getGetSongQueryKey, 
   getListSongsQueryKey, 
   getGetSongStatsQueryKey 
@@ -15,7 +16,7 @@ import { downloadJson } from "@/lib/export";
 import { useToast } from "@/hooks/use-toast";
 import { 
   ArrowLeft, Download, Trash2, User, Globe, Clock, BookOpen, 
-  Mic2, Music2, Languages, ListMusic, FileText, Dna, RefreshCw
+  Mic2, Music2, Languages, ListMusic, FileText, Dna, RefreshCw, ChevronDown
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -29,6 +30,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function SongDetail() {
   const params = useParams();
@@ -66,6 +74,22 @@ export function SongDetail() {
       }
     }
   });
+
+  const reanalyzeFull = useReanalyzeSong({
+    mutation: {
+      onSuccess: (updated) => {
+        queryClient.setQueryData(getGetSongQueryKey(id), updated);
+        queryClient.invalidateQueries({ queryKey: getListSongsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetSongStatsQueryKey() });
+        toast({ title: "Dossier refreshed." });
+      },
+      onError: () => {
+        toast({ title: "Re-analysis failed. Please try again.", variant: "destructive" });
+      }
+    }
+  });
+
+  const isAnalyzing = reanalyzeDna.isPending || reanalyzeFull.isPending;
 
   if (isLoading) {
     return (
@@ -108,19 +132,46 @@ export function SongDetail() {
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to Library
         </Link>
         <div className="flex items-center gap-3">
-          {missingDna && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => reanalyzeDna.mutate({ id: song.id })}
-              disabled={reanalyzeDna.isPending}
-              className="rounded-full bg-transparent border-brand-blue/50 text-brand-blue hover:bg-brand-blue/10 hover:text-brand-blue active:scale-[0.98] transition-transform"
-              data-testid="button-reanalyze-dna"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${reanalyzeDna.isPending ? "animate-spin" : ""}`} />
-              {reanalyzeDna.isPending ? "Analyzing..." : "Re-analyze DNA"}
-            </Button>
-          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isAnalyzing}
+                className="rounded-full bg-transparent border-brand-blue/50 text-brand-blue hover:bg-brand-blue/10 hover:text-brand-blue active:scale-[0.98] transition-transform"
+                data-testid="button-reanalyze-menu"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${isAnalyzing ? "animate-spin" : ""}`} />
+                {isAnalyzing ? "Analyzing..." : "Re-analyze"}
+                <ChevronDown className="w-3 h-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem
+                onClick={() => reanalyzeFull.mutate({ id: song.id })}
+                disabled={isAnalyzing}
+                data-testid="button-reanalyze-full"
+                className="cursor-pointer"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Full dossier
+              </DropdownMenuItem>
+              {missingDna && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => reanalyzeDna.mutate({ id: song.id })}
+                    disabled={isAnalyzing}
+                    data-testid="button-reanalyze-dna"
+                    className="cursor-pointer"
+                  >
+                    <Dna className="w-4 h-4 mr-2" />
+                    Musical DNA only
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" size="sm" onClick={handleExport} className="rounded-full bg-transparent border-brand-blue/50 text-brand-blue hover:bg-brand-blue/10 hover:text-brand-blue active:scale-[0.98] transition-transform" data-testid="button-export-single">
             <Download className="w-4 h-4 mr-2" /> Export JSON
           </Button>

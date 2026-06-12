@@ -417,6 +417,33 @@ paths:
       responses:
         "204":
           description: Deleted
+  /songs/{id}/reanalyze:
+    post:
+      operationId: reanalyzeSong
+      tags: [songs]
+      summary: Re-analyze a full dossier for an existing song
+      description: Reruns the complete AI pipeline (audio or knowledge-only) and replaces all metadata fields on the song row
+      parameters:
+        - $ref: "#/components/parameters/SongId"
+      responses:
+        "200":
+          description: Song with fully refreshed metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Song"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Generation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /songs/{id}/reanalyze-dna:
     post:
       operationId: reanalyzeDna
